@@ -3,8 +3,8 @@ Pillow
 gdown
 numpy
 pandas
-tensorflow
+tensorflow==2.15.1
 matplotlib
-protobuf
-keras
+protobuf==3.20.3
+keras==2.15.0
 opencv-python-headless
