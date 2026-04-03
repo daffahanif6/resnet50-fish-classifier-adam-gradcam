@@ -495,8 +495,8 @@ def main():
     Aplikasi Klasifikasi Ikan
     - Dibuat dengan Streamlit dan TensorFlow
     - Model ResNet50 yang telah dilatih ulang
-    - [GitHub Repository]()
-    - [Google Colaboratory]()
+    - [GitHub Repository](https://github.com/daffahanif6/resnet50-fish-classifier-adam-gradcam.git)
+    - [Google Colaboratory](https://colab.research.google.com/drive/19uRsRFPey8XHZmMGPZyzbtb9L-KI_xXA?usp=sharing)
     """)
 
 if __name__ == "__main__":
