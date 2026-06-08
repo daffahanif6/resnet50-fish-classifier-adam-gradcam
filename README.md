@@ -2,9 +2,7 @@
 
 > Analisis Performa dan Interpretabilitas Model melalui Grad-CAM
 
-<a href="https://klasifikasiikan.streamlit.app">
-  <img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Streamlit App" />
-</a>
+[![Streamlit App](https://img.shields.io/badge/Streamlit-FF4B4B?logo=Streamlit&logoColor=white)](https://klasifikasiikan.streamlit.app)
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-2.21.0-orange)
