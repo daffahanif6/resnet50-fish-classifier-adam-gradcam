@@ -1,0 +1,18 @@
+[theme]
+# Warna aksen biru cerah agar terlihat modern di latar gelap
+primaryColor = "#00d4ff"
+
+# Warna latar belakang utama (Deep Navy/Charcoal)
+backgroundColor = "#0a192f"
+
+# Warna sidebar dan kartu input agar ada dimensi kedalaman
+secondaryBackgroundColor = "#172a45"
+
+# Warna teks (Putih tulang agar tidak terlalu silau)
+textColor = "#e6f1ff"
+
+# Font yang bersih dan tegas
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false

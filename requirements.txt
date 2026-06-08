@@ -1,0 +1,9 @@
+streamlit
+Pillow
+gdown
+numpy
+pandas
+tensorflow>=2.21.0
+matplotlib
+protobuf
+keras>=3.12.0
