@@ -87,8 +87,7 @@ Model utama dilatih menggunakan **Adam optimizer** dengan **ResNet50 pre-trained
 
 Untuk memvalidasi bahwa model tidak sekadar menebak berdasarkan latar belakang citra, metode **Grad-CAM** diterapkan pada lapisan konvolusi terakhir (`conv5_block3_out`). 
 
-![Uploading image.png…]()
-
+<img width="1340" height="990" alt="gradcam" src="https://github.com/user-attachments/assets/d3593c17-8727-46d1-8045-26c0e11cf16e" />
 
 *Area berwarna merah menandai fitur taksonomi dengan bobot aktivasi paling tinggi.* Visualisasi membuktikan bahwa model secara konsisten memusatkan atensinya pada struktur anatomi diskriminatif (seperti bentuk badan, operkulum, dan sirip) sebagai dasar keputusan klasifikasi.
 
