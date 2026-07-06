@@ -1,9 +1,8 @@
-# 🐟 Klasifikasi Multi-Kelas Ikan Menggunakan Transfer Learning dengan ResNet50 dan Optimasi Adam
+# 🐟 Analisis Performa Melalui Optimasi ADAM dan GRAD-CAM dengan ResNet50 pada Klasifikasi Multi-Kelas Ikan
 
-> Analisis Performa dan Interpretabilitas Model melalui Grad-CAM
+> Menyelesaikan Masalah Black-Box pada Klasifikasi Ikan melalui Explainable AI (XAI)
 
 [![Streamlit App](https://img.shields.io/badge/Streamlit-FF4B4B?logo=Streamlit&logoColor=white)](https://klasifikasiikan.streamlit.app)
-
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-2.21.0-orange)
 ![Keras](https://img.shields.io/badge/Keras-3.14.1-red)
@@ -13,9 +12,11 @@
 
 ## 📌 Deskripsi
 
-Proyek ini merupakan implementasi sistem klasifikasi ikan berbasis deep learning menggunakan arsitektur **ResNet50** dengan pendekatan **Transfer Learning**. Model dilatih menggunakan optimizer **Adam** dan dilengkapi dengan visualisasi interpretabilitas menggunakan **Grad-CAM** (Gradient-weighted Class Activation Mapping) untuk menunjukkan area gambar yang menjadi fokus model dalam melakukan prediksi.
+Proyek ini tidak hanya berfokus pada pencapaian akurasi tinggi dalam klasifikasi 9 spesies ikan menggunakan arsitektur **ResNet50** dan **Adam Optimizer**, tetapi secara khusus memecahkan masalah krisis transparansi (*black-box*) pada model *Deep Learning*. 
 
-Aplikasi ini dibangun sebagai tugas akhir/skripsi dan dapat diakses secara langsung melalui antarmuka web berbasis **Streamlit**.
+Dengan mengintegrasikan **Explainable Artificial Intelligence (XAI)** melalui algoritma **Grad-CAM** (Gradient-weighted Class Activation Mapping), sistem ini mampu memvisualisasikan *heatmap* yang melokalisasi area fokus model. Hal ini membuktikan secara empiris bahwa keputusan model didasarkan pada fitur morfologi biologis ikan yang relevan (seperti struktur sirip, pola warna, dan bentuk kepala), bukan akibat mengeksploitasi bias pada artefak latar belakang citra.
+
+Aplikasi ini dibangun sebagai luaran tugas akhir/skripsi dan dapat diakses secara langsung melalui antarmuka web interaktif berbasis **Streamlit**.
 
 ---
 
@@ -28,9 +29,9 @@ Aplikasi ini dibangun sebagai tugas akhir/skripsi dan dapat diakses secara langs
 ## ✨ Fitur
 
 - ✅ Klasifikasi multi-kelas untuk 9 jenis ikan dari gambar input
+- **✅ Explainable AI (XAI): Visualisasi Grad-CAM untuk transparansi dan interpretabilitas keputusan model**
 - ✅ Transfer Learning menggunakan ResNet50 (pretrained ImageNet)
-- ✅ Optimasi model dengan **Adam Optimizer**
-- ✅ Visualisasi **Grad-CAM** untuk interpretabilitas model
+- ✅ Optimasi model dengan **Adam Optimizer** dan *Adaptive Learning Rate* (ReduceLROnPlateau)
 - ✅ Antarmuka web interaktif berbasis Streamlit
 - ✅ Menampilkan **Top 3** probabilitas prediksi per kelas
 - ✅ Riwayat prediksi (History)
@@ -44,7 +45,7 @@ Aplikasi ini dibangun sebagai tugas akhir/skripsi dan dapat diakses secara langs
 | Framework ML | TensorFlow 2.21 / Keras 3.14 |
 | Arsitektur Model | ResNet50 (Transfer Learning) |
 | Optimizer | Adam |
-| Interpretabilitas | Grad-CAM & Saliency Map |
+| Interpretabilitas | Grad-CAM (XAI) |
 | Web App | Streamlit |
 | Image Processing | Pillow, NumPy |
 | Bahasa | Python 3.12 |
@@ -53,7 +54,7 @@ Aplikasi ini dibangun sebagai tugas akhir/skripsi dan dapat diakses secara langs
 
 ## 🐠 Kelas Ikan
 
-Model ini mampu mengklasifikasikan **9 jenis ikan** berikut:
+Model ini mampu mengklasifikasikan **9 jenis ikan** laut berikut:
 
 | No | Kelas | No | Kelas |
 |----|-------|----|-------|
@@ -67,94 +68,47 @@ Model ini mampu mengklasifikasikan **9 jenis ikan** berikut:
 
 ## 📊 Performa Model (Adam + Pre-trained ResNet50)
 
-Model utama dilatih menggunakan **Adam optimizer** dengan **ResNet50 pre-trained ImageNet** sebagai backbone (frozen). Training berhenti di **epoch 13** dari 50 (Early Stopping).
+Model utama dilatih menggunakan **Adam optimizer** dengan **ResNet50 pre-trained ImageNet** sebagai *backbone* (frozen). Training konvergen dengan sangat cepat dan dihentikan pada **epoch 10** menggunakan mekanisme *Early Stopping*.
 
-### Hasil Evaluasi
+### Hasil Evaluasi (Data Uji / Testing)
 
 | Metrik | Nilai |
 |--------|-------|
-| Akurasi Training (Epoch Terakhir) | 99.95% |
-| Akurasi Validasi (Epoch Terakhir) | 100.00% |
-| **Akurasi Testing** | **100.00%** |
-| Loss Training (Epoch Terakhir) | 0.0021 |
-| Loss Validasi (Epoch Terakhir) | 0.00079 |
-| **Loss Testing** | **0.00092** |
-| Jumlah Epoch | 13/50 (Early Stopping) |
-| Learning Rate Akhir | 1e-05 |
-
-### Classification Report
-
-```
-                    precision    recall  f1-score   support
-
-   Black Sea Sprat       1.00      1.00      1.00       207
-   Gilt-Head Bream       1.00      1.00      1.00       209
-   Hourse Mackerel       1.00      1.00      1.00       200
-        Red Mullet       1.00      1.00      1.00       196
-     Red Sea Bream       1.00      1.00      1.00       201
-          Sea Bass       1.00      1.00      1.00       195
-            Shrimp       1.00      1.00      1.00       188
-Striped Red Mullet       1.00      1.00      1.00       200
-             Trout       1.00      1.00      1.00       204
-
-          accuracy                           1.00      1800
-         macro avg       1.00      1.00      1.00      1800
-      weighted avg       1.00      1.00      1.00      1800
-```
+| **Akurasi Testing** | **99.94%** |
+| **Loss Testing** | **0.00412** |
+| Precision (Macro Avg) | 1.00 |
+| Recall (Macro Avg) | 1.00 |
+| F1-Score (Macro Avg) | 1.00 |
+| Waktu Pelatihan | 15,15 menit (10 epoch) |
 
 ---
 
-## 🔬 Eksperimen Perbandingan: Adam vs SGD (Tanpa Pre-trained)
+## 🔍 Visualisasi Interpretabilitas (Grad-CAM)
 
-Untuk memvalidasi efektivitas **Adam optimizer** dan **transfer learning**, dilakukan eksperimen perbandingan dengan dua konfigurasi model:
+Untuk memvalidasi bahwa model tidak sekadar menebak berdasarkan latar belakang citra, metode **Grad-CAM** diterapkan pada lapisan konvolusi terakhir (`conv5_block3_out`). 
 
-### Konfigurasi Eksperimen
+*Area berwarna merah menandai fitur taksonomi dengan bobot aktivasi paling tinggi.* Visualisasi membuktikan bahwa model secara konsisten memusatkan atensinya pada struktur anatomi diskriminatif (seperti bentuk badan, operkulum, dan sirip) sebagai dasar keputusan klasifikasi.
 
-| Aspek | Model A (Utama) | Model B (Pembanding) |
-|-------|-----------------|----------------------|
-| **Weights** | Pre-trained ImageNet | Random (dari nol) |
+*(**Catatan untuk Daffa:** Jangan lupa ganti teks ini dengan memasukkan 1 atau 2 screenshot contoh gambar Grad-CAM dari skripsimu, misalnya: `<img src="link-gambar-gradcam.png" alt="Contoh Grad-CAM">`)*
+
+---
+
+## 🔬 Eksperimen Perbandingan (Ablation Study)
+
+Untuk memvalidasi signifikansi dari transfer learning dan optimizer Adam, sebuah eksperimen pembanding (Model B) dilakukan dengan melatih seluruh jaringan ResNet50 dari nol menggunakan inisialisasi acak dan optimizer SGD.
+
+### Ringkasan Perbandingan Performa
+
+| Aspek / Metrik | Model A (Utama) | Model B (Pembanding) |
+|----------------|-----------------|----------------------|
+| **Weights** | Pre-trained ImageNet | Random Init (dari nol) |
 | **Optimizer** | Adam | SGD |
-| **Backbone** | Frozen (tidak dilatih ulang) | Semua layer dilatih |
-| **Transfer Learning** | ✅ Ya | ❌ Tidak |
-| **Arsitektur Head** | Dense 512 → Dropout 0.5 → Dense 9 | Dense 512 → Dropout 0.5 → Dense 9 |
-| **Callbacks** | EarlyStopping + ReduceLR | EarlyStopping + ReduceLR |
-| **Batch Size** | 32 | 32 |
-| **Max Epochs** | 50 | 50 |
-| **Dataset Split** | 80% train, 20% test | 80% train, 20% test |
-| **Validation** | 20% dari train | 20% dari train |
+| **Akurasi Testing** | **99.94%** | 99.22% |
+| **Loss Testing** | **0.00412** | 0.02292 |
+| **Konvergensi** | Konvergen Cepat (10 Epoch) | Lebih Lambat (20 Epoch) |
+| **Kesalahan Prediksi** | Hanya 1 sampel salah (0.06%) | Tersebar di banyak kelas (0.78%) |
 
-> Semua kondisi eksperimen lainnya (dataset, preprocessing, split, batch size, arsitektur head) dibuat **identik** agar perbandingan valid.
-
-### Ringkasan Perbandingan
-
-| Metrik | Model A (Adam + Pre-trained) | Model B (SGD + Random Init) |
-|--------|-----------------------------|-----------------------------|
-| Akurasi Testing | **100.00%** | Jauh lebih rendah* |
-| Loss Testing | **0.00092** | Jauh lebih tinggi* |
-| Konvergensi | Cepat (13 epoch) | Lambat |
-| Transfer Learning | ✅ | ❌ |
-
-> *\*Notebook eksperimen belum memiliki output tersimpan. Berdasarkan analisis kode dan kesimpulan peneliti, Model B memberikan performa yang signifikan lebih buruk.*
-
-### Kesimpulan Eksperimen
-
-1. **Model A (ResNet50 + Adam + Pre-trained ImageNet)** memberikan performa yang sangat baik karena memanfaatkan:
-   - **Transfer Learning**: Bobot yang sudah dilatih pada jutaan gambar ImageNet
-   - **Optimizer Adam**: Adaptive learning rate yang konvergen lebih cepat
-
-2. **Model B (ResNet50 Murni + SGD tanpa Pre-trained)** menunjukkan performa yang jauh lebih rendah karena:
-   - Bobot diinisialisasi **random** sehingga harus belajar dari nol
-   - **SGD** dengan default learning rate konvergen lebih lambat
-   - Dataset yang relatif kecil (9.000 gambar) tidak cukup untuk melatih 23+ juta parameter ResNet50 dari awal
-
-3. Perbedaan performa ini membuktikan **nilai besar dari transfer learning dan optimizer adaptif (Adam)** dalam klasifikasi gambar, terutama ketika dataset terbatas.
-
-### Referensi Notebook
-
-| Notebook | Deskripsi | Link |
-|----------|-----------|------|
-| `21_11_4470_SKRIPSI.ipynb` | Model utama (Adam + Pre-trained) | [Google Colab](https://colab.research.google.com/drive/19uRsRFPey8XHZmMGPZyzbtb9L-KI_xXA?usp=sharing) |
-| `21_11_4470_SKRIPSI_EKSPERIMEN.ipynb` | Eksperimen perbandingan (Adam vs SGD) | *Tersedia di repository* |
+**Kesimpulan:** Penggunaan transfer learning dengan optimasi Adam terbukti secara empiris mampu menavigasi ruang parameter lebih efisien, memangkas waktu komputasi, dan menghasilkan klasifikasi yang jauh lebih solid dibandingkan model konvensional tanpa pra-latih.
 
 ---
 
