@@ -1,6 +1,7 @@
 import streamlit as st
 from PIL import Image
 import os
+import hashlib
 import gdown
 import numpy as np
 import pandas as pd
@@ -26,6 +27,11 @@ IMG_SIZE = (224, 224)
 MAX_FILE_SIZE_MB = 5
 MIN_MODEL_SIZE_BYTES = 1_000_000  # 1 MB
 
+# Batas jumlah piksel untuk mencegah serangan decompression bomb
+# (file kecil yang terdekompresi menjadi gambar berukuran raksasa).
+MAX_IMAGE_PIXELS = 40_000_000  # ~40 megapiksel
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+
 CLASS_NAMES = [
     'Black Sea Sprat', 'Gilt-Head Bream', 'Horse Mackerel',
     'Red Mullet', 'Red Sea Bream', 'Sea Bass',
@@ -40,35 +46,84 @@ LAYER_CANDIDATES = [
     "activation_49"
 ]
 
-# (Saran keamanan: Gunakan st.secrets untuk GDRIVE_FILE_ID di production)
-# GDRIVE_FILE_ID = st.secrets["GDRIVE_FILE_ID"]
-GDRIVE_FILE_ID = '1vAijkvT2TrxjSS-GvpNfZLy3he4aGGv9'
+def _get_config(key, default=None):
+    """
+    Reads configuration from st.secrets, falling back to environment
+    variables and then to a default value. Keeps deployment secrets out
+    of source control while remaining runnable locally.
+    """
+    try:
+        if key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        # st.secrets tidak tersedia (mis. tidak ada file secrets.toml)
+        pass
+    return os.environ.get(key, default)
+
+# ID file Google Drive dan checksum diambil dari konfigurasi bila tersedia.
+# Nilai default disediakan agar aplikasi tetap dapat dijalankan langsung.
+GDRIVE_FILE_ID = _get_config('GDRIVE_FILE_ID', '1vAijkvT2TrxjSS-GvpNfZLy3he4aGGv9')
+
+# SHA-256 model tepercaya. Digunakan untuk memverifikasi integritas file
+# yang diunduh sebelum di-load (mencegah pemuatan model yang dirusak/diganti,
+# yang dapat menyebabkan eksekusi kode arbitrer melalui deserialisasi Keras).
+EXPECTED_MODEL_SHA256 = _get_config(
+    'MODEL_SHA256',
+    '819fbfe14e562ad1a22c6303bd3103bc2f450bb8c6089746e568e4366339a0d5'
+)
 
 # ==============================================================================
 # 3. MODEL LOADING
 # (Saran #2: Tambahkan validasi integritas file model)
 # ==============================================================================
+def _sha256_of_file(path):
+    """Menghitung SHA-256 sebuah file secara streaming (hemat memori)."""
+    sha256 = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
+
+def _file_integrity_ok(path):
+    """
+    Memastikan file ada, ukurannya wajar, dan (jika checksum dikonfigurasi)
+    cocok dengan SHA-256 yang diharapkan.
+    """
+    if not os.path.exists(path) or os.path.getsize(path) < MIN_MODEL_SIZE_BYTES:
+        return False
+    if EXPECTED_MODEL_SHA256:
+        return _sha256_of_file(path) == EXPECTED_MODEL_SHA256.lower()
+    return True
+
+
 @st.cache_resource
 def load_model_from_gdrive():
     """
     Downloads and loads a Keras model in .h5 format from Google Drive.
-    Validates file integrity before loading.
-    Caches the model so it doesn't reload on every interaction.
+    Verifies the file's SHA-256 checksum before loading to prevent loading
+    a tampered/replaced model (which could execute arbitrary code via Keras
+    deserialization). Caches the model so it doesn't reload on every interaction.
     """
     url = f'https://drive.google.com/uc?id={GDRIVE_FILE_ID}'
     output = 'model.h5'
 
-    # Cek apakah file ada DAN ukurannya valid (bukan file corrupt/kosong)
-    file_is_valid = (
-        os.path.exists(output) and
-        os.path.getsize(output) >= MIN_MODEL_SIZE_BYTES
-    )
-
-    if not file_is_valid:
+    # Unduh ulang jika file belum ada atau gagal verifikasi integritas.
+    if not _file_integrity_ok(output):
         if os.path.exists(output):
-            os.remove(output)  # Hapus file corrupt sebelum download ulang
+            os.remove(output)  # Hapus file corrupt/tidak tepercaya sebelum download ulang
         with st.spinner("Mengunduh model dari Google Drive... (mungkin memerlukan beberapa saat)"):
             gdown.download(url, output, quiet=False)
+
+        # Verifikasi hasil unduhan sebelum di-load.
+        if not _file_integrity_ok(output):
+            if os.path.exists(output):
+                os.remove(output)
+            raise RuntimeError(
+                "Verifikasi integritas model gagal: checksum file yang diunduh "
+                "tidak cocok dengan nilai yang diharapkan. Pemuatan dibatalkan "
+                "demi keamanan."
+            )
 
     model = tf.keras.models.load_model(output, compile=False)
     return model
@@ -355,7 +410,20 @@ def prediction_page():
             st.error(error_msg)
             st.stop()
 
-        pil_image = Image.open(uploaded_file).convert("RGB")
+        try:
+            pil_image = Image.open(uploaded_file)
+            pil_image.verify()  # Deteksi file gambar yang rusak/tidak valid
+            uploaded_file.seek(0)
+            pil_image = Image.open(uploaded_file).convert("RGB")
+        except Image.DecompressionBombError:
+            st.error(
+                f"Gambar ditolak: dimensi melebihi batas aman "
+                f"({MAX_IMAGE_PIXELS:,} piksel)."
+            )
+            st.stop()
+        except Exception:
+            st.error("File gambar tidak valid atau rusak. Silakan unggah gambar JPG/PNG yang benar.")
+            st.stop()
 
         # (Saran #1: Hitung hash gambar untuk mencegah duplikat history)
         image_hash = hash(uploaded_file.getvalue())
