@@ -68,9 +68,37 @@ def load_model_from_gdrive():
         if os.path.exists(output):
             os.remove(output)  # Hapus file corrupt sebelum download ulang
         with st.spinner("Mengunduh model dari Google Drive... (mungkin memerlukan beberapa saat)"):
-            gdown.download(url, output, quiet=False)
+            try:
+                downloaded_path = gdown.download(url, output, quiet=False)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Gagal mengunduh model dari Google Drive: {type(e).__name__}: {e}"
+                ) from e
 
-    model = tf.keras.models.load_model(output, compile=False)
+        # gdown mengembalikan None (tanpa raise) jika unduhan gagal/diblokir
+        if downloaded_path is None or not os.path.exists(output):
+            raise RuntimeError(
+                "Gagal mengunduh model dari Google Drive: unduhan tidak menghasilkan file. "
+                "Periksa koneksi internet atau ketersediaan file di Google Drive."
+            )
+
+        if os.path.getsize(output) < MIN_MODEL_SIZE_BYTES:
+            os.remove(output)  # Hapus unduhan yang tidak lengkap
+            raise RuntimeError(
+                "File model yang diunduh tidak valid (ukuran terlalu kecil). "
+                "Kemungkinan unduhan terputus atau file di Google Drive tidak dapat diakses."
+            )
+
+    try:
+        model = tf.keras.models.load_model(output, compile=False)
+    except Exception as e:
+        # Hapus file yang kemungkinan corrupt agar unduhan berikutnya bersih
+        if os.path.exists(output):
+            os.remove(output)
+        raise RuntimeError(
+            f"Gagal memuat model dari '{output}': {type(e).__name__}: {e}"
+        ) from e
+
     return model
 
 # ==============================================================================
@@ -341,7 +369,12 @@ def prediction_page():
     st.markdown("### Unggah Gambar Ikan untuk Klasifikasi")
     st.write("Unggah gambar ikan (JPG/PNG, maks. 5 MB) untuk diklasifikasikan oleh model.")
 
-    model = load_model_from_gdrive()
+    try:
+        model = load_model_from_gdrive()
+    except Exception as e:
+        st.error(f"Tidak dapat memuat model: {e}")
+        st.info("Silakan muat ulang halaman untuk mencoba mengunduh model kembali.")
+        st.stop()
 
     uploaded_file = st.file_uploader("Pilih sebuah gambar...", type=["jpg", "jpeg", "png"])
 
@@ -355,7 +388,14 @@ def prediction_page():
             st.error(error_msg)
             st.stop()
 
-        pil_image = Image.open(uploaded_file).convert("RGB")
+        try:
+            pil_image = Image.open(uploaded_file).convert("RGB")
+        except Exception as e:
+            st.error(
+                "Gagal membuka gambar. Pastikan file merupakan gambar yang valid (JPG/PNG). "
+                f"Detail: {type(e).__name__}: {e}"
+            )
+            st.stop()
 
         # (Saran #1: Hitung hash gambar untuk mencegah duplikat history)
         image_hash = hash(uploaded_file.getvalue())
@@ -366,8 +406,15 @@ def prediction_page():
             st.image(pil_image, caption="Gambar yang Diunggah", use_container_width=True)
 
         with col2:
-            with st.spinner('Mengklasifikasi...'):
-                top_3_results = predict(pil_image, model)
+            try:
+                with st.spinner('Mengklasifikasi...'):
+                    top_3_results = predict(pil_image, model)
+            except Exception as e:
+                st.error(
+                    "Gagal melakukan klasifikasi pada gambar ini. "
+                    f"Detail: {type(e).__name__}: {e}"
+                )
+                st.stop()
 
             predicted_class, confidence = top_3_results[0]
 
@@ -392,8 +439,15 @@ def prediction_page():
         with st.spinner("Membuat visualisasi..."):
             # Coba Grad-CAM dengan berbagai layer
             for layer_name in LAYER_CANDIDATES:
+                # Lewati kandidat yang tidak ada di model ini. Pengecekan layer
+                # dipisah agar ValueError dari get_layer tidak menutupi error
+                # sesungguhnya saat pembuatan heatmap.
                 try:
                     model.get_layer(layer_name)
+                except ValueError:
+                    continue
+
+                try:
                     heatmap = make_gradcam_heatmap(img_array_for_vis, model, layer_name)
                     superimposed_image = display_gradcam(pil_image, heatmap)
                     st.image(
@@ -404,11 +458,9 @@ def prediction_page():
                     st.success(f"Berhasil membuat Grad-CAM dengan layer: {layer_name}")
                     visualization_created = True
                     break
-                except ValueError:
-                    # Layer tidak ditemukan, coba layer berikutnya
-                    continue
                 except Exception as e:
                     # (Saran #5: Tampilkan info error yang lebih informatif)
+                    # Layer ada tapi Grad-CAM gagal - surfacekan errornya, jangan telan.
                     st.warning(f"Layer `{layer_name}` gagal: {type(e).__name__}: {e}")
                     continue
 
