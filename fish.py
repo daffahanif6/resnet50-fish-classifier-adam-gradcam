@@ -6,8 +6,16 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from io import BytesIO
 from datetime import datetime
+
+from utils import (
+    IMG_SIZE,
+    figure_to_image,
+    image_to_array_batch,
+    normalize_01,
+    pil_to_png_bytes,
+    squeeze_predictions,
+)
 
 # ==============================================================================
 # 1. STREAMLIT PAGE CONFIGURATION
@@ -22,7 +30,6 @@ st.set_page_config(
 # 2. KONSTANTA GLOBAL
 # (Saran #3, #7: Pindahkan magic number & class_names ke level modul)
 # ==============================================================================
-IMG_SIZE = (224, 224)
 MAX_FILE_SIZE_MB = 5
 MIN_MODEL_SIZE_BYTES = 1_000_000  # 1 MB
 
@@ -84,9 +91,7 @@ def transform_image_for_prediction(pil_img):
     if pil_img.mode != "RGB":
         pil_img = pil_img.convert("RGB")
 
-    pil_img = pil_img.resize(IMG_SIZE)
-    img_array = tf.keras.utils.img_to_array(pil_img)
-    img_array = np.expand_dims(img_array, axis=0)
+    img_array = image_to_array_batch(pil_img)
     processed_img = tf.keras.applications.resnet50.preprocess_input(img_array)
     return processed_img
 
@@ -118,8 +123,7 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
     with tf.GradientTape() as tape:
         last_conv_layer_output, preds = grad_model(img_array)
 
-        if isinstance(preds, list):
-            preds = preds[0]
+        preds = squeeze_predictions(preds)
 
         if pred_index is None:
             pred_index = tf.argmax(preds[0])
@@ -131,7 +135,7 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
     last_conv_layer_output = last_conv_layer_output[0]
     heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
     heatmap = tf.squeeze(heatmap)
-    heatmap = tf.maximum(heatmap, 0) / (tf.math.reduce_max(heatmap) + 1e-9)
+    heatmap = normalize_01(heatmap, relu=True)
 
     return heatmap.numpy()
 
@@ -171,16 +175,14 @@ def generate_saliency_map(model, img_array):
         tape.watch(img_array)
         predictions = model(img_array)
 
-        if isinstance(predictions, list):
-            predictions = predictions[0]
+        predictions = squeeze_predictions(predictions)
 
         top_pred_index = tf.argmax(predictions[0])
         top_class_channel = predictions[0][top_pred_index]
 
     gradients = tape.gradient(top_class_channel, img_array)
     saliency = tf.reduce_max(tf.abs(gradients), axis=-1)[0]
-    saliency = (saliency - tf.reduce_min(saliency))
-    saliency /= (tf.reduce_max(saliency) + 1e-9)
+    saliency = normalize_01(saliency)
 
     return saliency.numpy()
 
@@ -384,10 +386,7 @@ def prediction_page():
         st.markdown("### Visualisasi Model")
         st.write("Heatmap menunjukkan area pada gambar yang paling memengaruhi keputusan model.")
 
-        img_array_for_vis = np.expand_dims(
-            tf.keras.utils.img_to_array(pil_image.resize(IMG_SIZE)),
-            axis=0
-        )
+        img_array_for_vis = image_to_array_batch(pil_image)
 
         with st.spinner("Membuat visualisasi..."):
             # Coba Grad-CAM dengan berbagai layer
@@ -421,10 +420,7 @@ def prediction_page():
                     st.pyplot(fig)
                     st.info("Saliency Map: Area berwarna menunjukkan pengaruh terbesar pada keputusan model.")
                     visualization_created = True
-                    buf = BytesIO()
-                    fig.savefig(buf, format='png')
-                    buf.seek(0)
-                    superimposed_image = Image.open(buf)
+                    superimposed_image = figure_to_image(fig)
                 except Exception as e:
                     st.error(f"Gagal membuat visualisasi: {type(e).__name__}: {e}")
 
@@ -451,12 +447,7 @@ def prediction_page():
 
             vis_bytes = None
             if visualization_created and superimposed_image:
-                buf = BytesIO()
-                if isinstance(superimposed_image, Image.Image):
-                    superimposed_image.save(buf, format='PNG')
-                else:
-                    plt.savefig(buf, format='png')
-                vis_bytes = buf.getvalue()
+                vis_bytes = pil_to_png_bytes(superimposed_image)
 
             history_record = {
                 'image_hash': image_hash,
